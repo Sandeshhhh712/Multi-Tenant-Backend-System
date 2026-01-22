@@ -22,3 +22,8 @@ class Token(BaseModel):
 
 class Tokendata(BaseModel):
     username : str
+
+class OrganizationCreate(BaseModel):
+    name : str = Field(max_length=255)
+
+    model_config = {"extra":"forbid"}

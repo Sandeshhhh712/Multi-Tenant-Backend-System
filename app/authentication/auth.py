@@ -72,6 +72,13 @@ def get_current_user(token: Annotated[str , Depends(oauth2scheme)], session : Se
     except InvalidTokenError:
         raise credential_exception
     user = get_user(session , username=tokendata.username)
-    if username is None:
+    if user is None:
         raise credential_exception
     return user
+
+def require_admin(
+    current_user: User = Depends(get_current_user)
+):  
+    if current_user.roles.value != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return current_user

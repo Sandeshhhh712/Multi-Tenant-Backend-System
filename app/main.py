@@ -1,15 +1,14 @@
 from fastapi import FastAPI , HTTPException , status , Depends
 from contextlib import asynccontextmanager
 from app.database.setup import Base , engine , SessionDependency 
-from app.database.models import User
-from app.database.schemas import UserCreate , UserRead , Token
-from app.authentication.auth import hash_password , authenticate_user , ACCESS_TOKEN_EXPIRE_MINUTES , create_access_token
+from app.database.models import User , Organization
+from app.database.schemas import UserCreate , UserRead , Token , OrganizationCreate
+from app.authentication.auth import require_admin , hash_password , authenticate_user , ACCESS_TOKEN_EXPIRE_MINUTES , create_access_token
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
 from datetime import timedelta
-
 
 
 @asynccontextmanager
@@ -64,4 +63,17 @@ def token(formdata : Annotated[OAuth2PasswordRequestForm , Depends()], session :
     access_token_expire = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={'sub':user.username}, expires_delta=access_token_expire)
     return Token(access_token=access_token , token_type='bearer')
+
+@app.post("/organization")
+def create_organization(organization : OrganizationCreate, session : SessionDependency , current_user : User = Depends(require_admin)):
+    
+    new_organization = Organization(
+        name = organization.name
+    )
+
+    session.add(new_organization)
+    session.commit()
+    session.refresh(new_organization)
+    return new_organization
+
 
