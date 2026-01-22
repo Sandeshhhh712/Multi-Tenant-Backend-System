@@ -1,11 +1,15 @@
-from fastapi import FastAPI , HTTPException , status
+from fastapi import FastAPI , HTTPException , status , Depends
 from contextlib import asynccontextmanager
 from app.database.setup import Base , engine , SessionDependency 
 from app.database.models import User
-from app.database.schemas import UserCreate , UserRead
-from app.authentication.auth import hash_password 
+from app.database.schemas import UserCreate , UserRead , Token
+from app.authentication.auth import hash_password , authenticate_user , ACCESS_TOKEN_EXPIRE_MINUTES , create_access_token
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
+from fastapi.security import OAuth2PasswordRequestForm
+from typing import Annotated
+from datetime import timedelta
+
 
 
 @asynccontextmanager
@@ -47,3 +51,17 @@ def create_user(session:SessionDependency, user : UserCreate ) -> UserRead:
         )
     session.refresh(user_in)
     return UserRead.model_validate(user_in)
+
+@app.post("/token")
+def token(formdata : Annotated[OAuth2PasswordRequestForm , Depends()], session : SessionDependency) -> Token:
+    user = authenticate_user(session ,formdata.username , formdata.password)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Username or Password",
+            headers={'WWW-Authenticate':'Bearer'}
+        )
+    access_token_expire = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(data={'sub':user.username}, expires_delta=access_token_expire)
+    return Token(access_token=access_token , token_type='bearer')
+
